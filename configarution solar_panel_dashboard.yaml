@@ -1,0 +1,153 @@
+# =============================================================================
+# HOME ASSISTANT CONFIGURATION
+# Solar Panel Monitoring Dashboard
+# =============================================================================
+
+mobile_app:
+
+template:
+  - sensor:
+      - name: "Solar Voltage"
+        unique_id: solar_voltage_dummy
+        unit_of_measurement: "V"
+        device_class: voltage
+        state_class: measurement
+        state: >
+          {% set hour = now().hour %}
+          {% set minute = now().minute %}
+          {% set second = now().second %}
+          {% set time_factor = (minute * 60 + second) / 3600.0 %}
+          {% set noise = (second % 10) / 10.0 %}
+          {% if hour >= 6 and hour < 18 %}
+            {% set t = ((hour - 6) + time_factor) / 12.0 %}
+            {% set base = 25 + 15 * (1 - (2*t - 1)**2) %}
+            {{ (base + noise * 2 - 1) | round(1) }}
+          {% else %}
+            {{ (12.5 + noise * 0.5) | round(1) }}
+          {% endif %}
+
+      - name: "Solar Current"
+        unique_id: solar_current_dummy
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+        state: >
+          {% set hour = now().hour %}
+          {% set minute = now().minute %}
+          {% set second = now().second %}
+          {% set time_factor = (minute * 60 + second) / 3600.0 %}
+          {% set noise = (second % 7) / 10.0 %}
+          {% if hour >= 6 and hour < 18 %}
+            {% set t = ((hour - 6) + time_factor) / 12.0 %}
+            {% set base = 2 + 5 * (1 - (2*t - 1)**2) %}
+            {{ (base + noise * 0.5 - 0.25) | round(2) }}
+          {% else %}
+            {{ (0.1 + noise * 0.05) | round(2) }}
+          {% endif %}
+
+      - name: "Solar Power"
+        unique_id: solar_power_dummy
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ (states('sensor.solar_voltage') | float(0) * states('sensor.solar_current') | float(0)) | round(1) }}
+
+      - name: "Battery SOC"
+        unique_id: battery_soc_dummy
+        unit_of_measurement: "%"
+        device_class: battery
+        state_class: measurement
+        state: >
+          {% set hour = now().hour %}
+          {% set minute = now().minute %}
+          {% set second = now().second %}
+          {% set time_factor = (minute * 60 + second) / 3600.0 %}
+          {% set fluctuation = (second % 5) * 0.1 %}
+          {% if hour >= 6 and hour < 16 %}
+            {{ (60 + ((hour - 6) + time_factor) * 3.5 + fluctuation) | round(1) }}
+          {% elif hour >= 16 and hour < 24 %}
+            {{ (95 - ((hour - 16) + time_factor) * 2.5 - fluctuation) | round(1) }}
+          {% else %}
+            {{ (75 - (hour + time_factor) * 2 - fluctuation) | round(1) }}
+          {% endif %}
+
+      - name: "Ambient Temperature"
+        unique_id: ambient_temp_dummy
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set hour = now().hour %}
+          {% set minute = now().minute %}
+          {% set second = now().second %}
+          {% set time_factor = (minute * 60 + second) / 3600.0 %}
+          {% set variation = (second % 6) * 0.15 %}
+          {% if hour >= 6 and hour < 14 %}
+            {{ (26 + ((hour - 6) + time_factor) * 1.2 + variation) | round(1) }}
+          {% elif hour >= 14 and hour < 18 %}
+            {{ (35 - ((hour - 14) + time_factor) * 1.5 + variation) | round(1) }}
+          {% else %}
+            {{ (25 + variation) | round(1) }}
+          {% endif %}
+
+      - name: "Daily Energy"
+        unique_id: daily_energy_dummy
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {% set hour = now().hour %}
+          {% set minute = now().minute %}
+          {% set second = now().second %}
+          {% set time_in_hours = hour + (minute / 60.0) + (second / 3600.0) %}
+          {% if hour < 6 %}
+            {{ 0.5 | round(3) }}
+          {% else %}
+            {% set production_rate = 0.35 %}
+            {{ (0.5 + (time_in_hours - 6) * production_rate) | round(3) }}
+          {% endif %}
+
+      - name: "Monthly Energy"
+        unique_id: monthly_energy_dummy
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {% set day = now().day %}
+          {% set hour = now().hour %}
+          {% set minute = now().minute %}
+          {% set time_fraction = (hour + minute / 60.0) / 24.0 %}
+          {{ (day * 4.2 + time_fraction * 4.2) | round(2) }}
+
+automation:
+  - id: force_update_solar_sensors
+    alias: "Update Sensor Solar Setiap 3 Detik"
+    trigger:
+      - platform: time_pattern
+        seconds: "/3"
+    action:
+      - service: homeassistant.update_entity
+        target:
+          entity_id:
+            - sensor.solar_voltage
+            - sensor.solar_current
+            - sensor.solar_power
+            - sensor.battery_soc
+            - sensor.ambient_temperature
+            - sensor.daily_energy
+            - sensor.monthly_energy
+
+utility_meter:
+  daily_solar_energy:
+    source: sensor.solar_power
+    cycle: daily
+  monthly_solar_energy:
+    source: sensor.solar_power
+    cycle: monthly
+
+recorder:
+  purge_keep_days: 7
+  commit_interval: 1
+
+history:
