@@ -1,0 +1,89 @@
+title: Monitoring Panel Surya
+views:
+  - title: Dashboard
+    path: solar-monitoring
+    icon: mdi:home
+    badges:
+      - type: entity
+        entity: sensor.solar_voltage
+      - type: entity
+        entity: sensor.solar_current
+      - type: entity
+        entity: sensor.ambient_temperature
+      - type: entity
+        entity: sensor.battery_soc
+    cards:
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.solar_voltage
+            name: Tegangan Panel
+            unit: V
+            min: 0
+            max: 50
+          - type: gauge
+            entity: sensor.solar_current
+            name: Arus Panel
+            unit: A
+            min: 0
+            max: 10
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.ambient_temperature
+            name: Suhu Saat Ini
+            icon: mdi:thermometer
+          - type: entity
+            entity: sensor.battery_soc
+            name: State of Charge Baterai
+            icon: mdi:battery-80
+      - type: entities
+        title: Detail Sistem
+        entities:
+          - entity: sensor.solar_voltage
+            name: Tegangan
+            icon: mdi:flash
+          - entity: sensor.solar_current
+            name: Arus
+            icon: mdi:current-dc
+          - entity: sensor.battery_soc
+            name: SOC Baterai
+            icon: mdi:battery
+          - entity: sensor.ambient_temperature
+            name: Suhu
+            icon: mdi:thermometer
+          - type: divider
+          - entity: sensor.daily_energy
+            name: Energi Hari Ini
+            icon: mdi:solar-power
+          - entity: sensor.monthly_energy
+            name: Energi Bulan Ini
+            icon: mdi:calendar
+    type: masonry
+
+  - title: Energi
+    path: energi
+    icon: mdi:lightning-bolt
+    badges: []
+    cards:
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.daily_energy
+            name: Energi Hari Ini
+            icon: mdi:lightning-bolt
+          - type: entity
+            entity: sensor.monthly_energy
+            name: Produksi Bulan Ini
+            icon: mdi:calendar-month
+            secondary_info: last-changed
+      - type: history-graph
+        title: Monitoring Tegangan & Arus
+        hours_to_show: 6
+        refresh_interval: 0
+        entities:
+          - entity: sensor.solar_voltage
+            name: Tegangan (V)
+          - entity: sensor.solar_current
+            name: Arus (A)
+    type: masonry
